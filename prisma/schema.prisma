@@ -28,7 +28,8 @@ model User {
 
   refreshTokens RefreshToken[]
   loginAttempts LoginAttempt[]
-
+  auditLogs AuditLog[]
+  
   @@index([email])
 }
 
@@ -60,4 +61,19 @@ model LoginAttempt {
 
   @@index([email, attemptAt])
   @@index([ipAddress, attemptAt])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid(2))
+  userId     String?
+  action     String   // e.g. 'user.login', 'user.logout', 'user.password_reset'
+  metadata   Json?    // flexible payload — who, what changed, old/new values
+  ipAddress  String
+  userAgent  String
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([action])
 }
