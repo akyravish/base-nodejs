@@ -1,14 +1,34 @@
 import cookieParser from 'cookie-parser'
 import cors from 'cors'
 import express from 'express'
-import type { NextFunction, Request, Response } from 'express'
+import type { Request, Response } from 'express'
 import helmet from 'helmet'
+import { env } from './lib/env.js'
 
 export function createApp(): express.Application {
   const app = express()
 
   /* ------------------------------ Security Headers ------------------------------ */
   app.use(helmet())
+
+  /* ------------------------------ CORS ------------------------------ */
+  app.use(
+    cors({
+      origin: (origin, callback) => {
+        // Allow request with no origin (e.g server-to-server, mobile apps, etc.)
+        if (!origin) return callback(null, true)
+
+        if (env.ALLOWED_ORIGINS.includes(origin)) {
+          return callback(null, true)
+        } else {
+          callback(new Error(`CORS: Origin ${origin} is not allowed`))
+        }
+      },
+      credentials: true, // Allow cookies and auth headers to be sent
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
+    }),
+  )
 
   /* ------------------------------ Body Parsing ------------------------------ */
   app.use(express.json({ limit: '10mb' }))

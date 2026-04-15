@@ -28,7 +28,8 @@ const envSchema = z.object({
   JWT_ACCESS_EXPIRY: z.string().default('15m'),
   JWT_REFRESH_EXPIRY: z.string().default('7d'),
 
-  /* ---------------------------------- ENCRYPTION ---------------------------------- */
+  /* ---------------------------------- SECURITY ---------------------------------- */
+  ALLOWED_ORIGINS: z.string().transform((val) => val.split(',').map((origin) => origin.trim())),
   ENCRYPTION_KEY: z.string().length(64, 'ENCRYPTION_KEY must be a 64-char hex string (32 bytes)'),
 
   /* ------------------------------ RATE LIMITING ----------------------------- */
