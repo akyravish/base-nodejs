@@ -1,0 +1,46 @@
+# Environment variables — never commit these
+.env
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules
+**/node_modules
+
+# Build outputs
+dist
+**/dist
+.next
+**/.next
+
+# Test coverage
+coverage
+**/coverage
+
+# TypeScript build info
+*.tsbuildinfo
+**/*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/settings.json
+.idea
+
+# Docker volumes (if accidentally created locally)
+postgres_data
+mysql_data
+redis_data
+
+# Turborepo cache
+.turbo
+**/.turbo
+
+
+/generated/prisma

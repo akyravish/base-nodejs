@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig", // Give editor a schema so it can auto-suggest and validate tsconfig options.
+  "compilerOptions": {
+    "strict": true, // Enable all strict type-checking options.
+    "target": "ES2022", // Target ES2022 features.
+    "lib": ["ES2022"],
+    "module": "NodeNext", // Use modern Node.js ESM + CommonJS hybrid behavior. Ex: "import" for ESM, "require" for CommonJS.
+    "moduleResolution": "NodeNext",
+    "declaration": false, // Generate .d.ts files for each source file.
+    "declarationMap": false, // Maps .d.ts back to original .ts. This allows for faster type checking and intellisense.
+    "sourceMap": true, // Maps compiled JS back to TS. Debugging in browser / Node.js. Stack traces point to TS.
+    "esModuleInterop": true, // Makes CommonJS imports work smoothly.
+    "allowSyntheticDefaultImports": true, // Lets you use default imports even if module doesn't export default.
+    "forceConsistentCasingInFileNames": true, // Enforce that file names are consistent.
+    "skipLibCheck": true, // Skip type checking for external libraries.
+    "noUnusedLocals": true, // Enforce that all local variables are used.
+    "noUnusedParameters": true, // Enforce that all function parameters are used.
+    "noImplicitReturns": true, // Enforce that all functions return a value.
+    "noFallthroughCasesInSwitch": true, // Enforce that all switch cases are covered.
+    "exactOptionalPropertyTypes": true // Enforce that all optional properties are typed.
+  }
+}
