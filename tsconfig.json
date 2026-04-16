@@ -2,9 +2,9 @@
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": "src",
+    "rootDir": ".",
     "ignoreDeprecations": "5.0"
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "generated/**/*"],
   "exclude": ["node_modules", "dist", "tests"]
 }

@@ -3,7 +3,9 @@ import cors from 'cors'
 import express from 'express'
 import type { Request, Response } from 'express'
 import helmet from 'helmet'
+
 import { env } from './lib/env.js'
+import { globalErrorHandler } from './middlewares/error.middleware.js'
 
 export function createApp(): express.Application {
   const app = express()
@@ -49,6 +51,9 @@ export function createApp(): express.Application {
       error: { code: 'NOT_FOUND', message: 'The requested route does not exist' },
     })
   })
+
+  /* ------------------------------ Error Handler ------------------------------ */
+  app.use(globalErrorHandler)
 
   return app
 }
