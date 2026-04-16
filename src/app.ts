@@ -6,6 +6,7 @@ import helmet from 'helmet'
 
 import { env } from './lib/env.js'
 import { globalErrorHandler } from './middlewares/error.middleware.js'
+import { generalRateLimiter } from './middlewares/rate-limit.middleware.js'
 
 export function createApp(): express.Application {
   const app = express()
@@ -43,6 +44,9 @@ export function createApp(): express.Application {
       .status(200)
       .json({ success: true, data: { status: 'ok', timestamp: new Date().toISOString() } })
   })
+
+  /* ------------------------------- API Routes ------------------------------- */
+  app.use(generalRateLimiter)
 
   /* ------------------------------- 404 Handler ------------------------------ */
   app.use((_req: Request, res: Response): void => {
