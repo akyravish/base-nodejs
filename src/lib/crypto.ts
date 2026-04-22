@@ -45,8 +45,12 @@ export function generateSecureToken(length: number = 64): string {
 }
 
 // Hashes a password using Argon2 for secure password storage
-export async function hashPassword(password: string): Promise<string> {
-  return await argon2.hash(password)
+// Default options are: memoryCost = 19456, timeCost = 2, parallelism = 1 => 2^19.456 bytes of memory, 2 iterations, 1 thread
+export async function hashPassword(
+  password: string,
+  options: { memoryCost?: number; timeCost?: number; parallelism?: number } = {},
+): Promise<string> {
+  return await argon2.hash(password, { ...options })
 }
 
 // Verifies a password against a stored hash using Argon2
