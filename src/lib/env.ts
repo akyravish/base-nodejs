@@ -41,6 +41,16 @@ const envSchema = z.object({
     .string()
     .optional()
     .transform((val) => (val ? Number(val) : 100)),
+
+  /* ------------------------------ EMAIL ----------------------------- */
+  EMAIL_FROM: z.string().email().optional(),
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z
+    .string()
+    .optional()
+    .transform((val) => (val ? Number(val) : 587)),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
 })
 
 function parseEnv(): z.infer<typeof envSchema> {

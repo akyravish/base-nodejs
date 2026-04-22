@@ -1,7 +1,10 @@
+import jwt from 'jsonwebtoken'
+
 import { hashPassword } from '../lib/crypto.js'
 import { prisma } from '../lib/prisma.js'
 import { RegisterSchema } from '../schemas/auth.schema.js'
 import { ConflictError } from '../types/errors.js'
+import { env } from '../lib/env.js'
 
 /**
  * Register a new user and queue email verification
@@ -49,4 +52,13 @@ export async function registerUser(
   })
 
   return { userId: user.id }
+}
+
+/**
+ * Generate a signed email verification token(JWT) for the user. We don't store this token - token itself is the proof. It expires in 24 hours.
+ */
+export function generateEmailVerificationToken(userId: string): string {
+  return jwt.sign({ userId, purpose: 'email-verification' }, env.JWT_ACCESS_SECRET, {
+    expiresIn: '24h',
+  })
 }

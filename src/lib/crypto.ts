@@ -1,4 +1,5 @@
 import crypto from 'crypto'
+
 import argon2 from 'argon2'
 
 import { env } from './env.js'
@@ -8,7 +9,7 @@ export function hashToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex')
 }
 
-// Encrypts a value using AES-256-GCM for storing sensitive fields at rest.
+// Encrypts a value using AES-256-GCM for storing Osensitive fields at rest.
 // Returns a string in the format: iv:authTag:ciphertext (all hex encoded)
 export function encryptField(plaintext: string): string {
   const keyBuffer = Buffer.from(env.ENCRYPTION_KEY, 'hex')
