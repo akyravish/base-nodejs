@@ -5,7 +5,7 @@ import type { Request, RequestHandler, Response, NextFunction } from 'express'
 export function asyncHandler(
   handler: (req: Request, res: Response, next: NextFunction) => Promise<void>,
 ): RequestHandler {
-  return async (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, res: Response, next: NextFunction) => {
     handler(req, res, next).catch(next)
   }
 }

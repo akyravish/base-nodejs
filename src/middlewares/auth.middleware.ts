@@ -14,7 +14,7 @@ interface JwtAccessPayload {
 export function authenticate(req: Request, _res: Response, next: NextFunction): void {
   const authHeader = req.headers['authorization']
 
-  if (!authHeader || !authHeader?.startsWith('Bearer ')) {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
     throw new AuthError('Missing or malformed Authorization header')
   }
 
@@ -29,7 +29,7 @@ export function authenticate(req: Request, _res: Response, next: NextFunction): 
     }
 
     next()
-  } catch (error) {
+  } catch {
     throw new AuthError('Invalid or expired JWT access token')
   }
 }

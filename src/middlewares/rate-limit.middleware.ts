@@ -1,10 +1,11 @@
-import { rateLimit } from 'express-rate-limit'
-import { RedisReply, RedisStore } from 'rate-limit-redis'
-import type { Redis } from 'ioredis'
 import type { Request, Response } from 'express'
+import { rateLimit } from 'express-rate-limit'
+import type { Redis } from 'ioredis'
+import type { RedisReply } from 'rate-limit-redis'
+import { RedisStore } from 'rate-limit-redis'
 
-import { redis } from '../lib/redis.js'
 import { env } from '../lib/env.js'
+import { redis } from '../lib/redis.js'
 
 // General API rate limiter — applied to all authenticated routes
 export const generalRateLimiter = rateLimit({

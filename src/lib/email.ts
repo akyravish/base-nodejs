@@ -14,7 +14,7 @@ interface EmailProvider {
 }
 
 /* ----------------------- SMTP / Nodemailer Provider ----------------------- */
-async function createSmtpProvider(): Promise<EmailProvider> {
+function createSmtpProvider(): EmailProvider {
   const transporter = nodemailer.createTransport({
     host: env.SMTP_HOST ?? 'localhost',
     port: env.SMTP_PORT,
@@ -31,7 +31,7 @@ async function createSmtpProvider(): Promise<EmailProvider> {
     async send(options: SendEmailOptions) {
       await transporter.sendMail({
         from: env.EMAIL_FROM ?? 'no-reply@example.com',
-        to: Array.isArray(options.to) ? options.to.join(',') : (options.to as string),
+        to: Array.isArray(options.to) ? options.to.join(',') : options.to,
         subject: options.subject,
         html: options.html,
         text: options.text,
@@ -42,14 +42,14 @@ async function createSmtpProvider(): Promise<EmailProvider> {
 
 let emailProviderInstance: EmailProvider | null = null
 
-async function getEmailProvider(): Promise<EmailProvider> {
+function getEmailProvider(): EmailProvider {
   if (!emailProviderInstance) {
-    emailProviderInstance = await createSmtpProvider()
+    emailProviderInstance = createSmtpProvider()
   }
   return emailProviderInstance
 }
 
 export async function sendEmail(options: SendEmailOptions): Promise<void> {
-  const provider = await getEmailProvider()
+  const provider = getEmailProvider()
   await provider.send(options)
 }

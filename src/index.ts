@@ -1,9 +1,9 @@
 import { createApp } from './app.js'
 import { env } from './lib/env.js'
 import { logger } from './lib/logger.js'
-import { setupProcessErrorHandlers } from './middlewares/error.middleware.js'
-import { redis } from './lib/redis.js'
 import { prisma } from './lib/prisma.js'
+import { redis } from './lib/redis.js'
+import { setupProcessErrorHandlers } from './middlewares/error.middleware.js'
 
 setupProcessErrorHandlers() // Setup process error handlers to gracefully shutdown the app
 
@@ -21,14 +21,18 @@ async function startServer(): Promise<void> {
   })
 
   // Graceful shutdown - close connections cleanly on SIGTERM/SIGINT
-  async function shutdown(): Promise<void> {
+  async function closeConnectionsAndExit(): Promise<void> {
+    await prisma.$disconnect()
+    await redis.quit()
+    logger.info('All connections closed. Exiting...')
+    process.exit(0)
+  }
+
+  function shutdown(): void {
     logger.info('Shutting down server...')
 
-    server.close(async () => {
-      await prisma.$disconnect()
-      await redis.quit()
-      logger.info('All connections closed. Exiting...')
-      process.exit(0)
+    server.close(() => {
+      void closeConnectionsAndExit()
     })
 
     // Force exit if graceful shutdown takes too long
@@ -38,7 +42,7 @@ async function startServer(): Promise<void> {
     }, 10_000)
   }
 
-  // Handle shutdown signals
+  // Handle shutdown signals (listeners must return void, not a Promise)
   process.on('SIGTERM', shutdown)
   process.on('SIGINT', shutdown)
 }

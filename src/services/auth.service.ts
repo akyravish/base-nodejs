@@ -1,10 +1,10 @@
 import jwt from 'jsonwebtoken'
 
 import { hashPassword } from '../lib/crypto.js'
-import { prisma } from '../lib/prisma.js'
-import { RegisterSchema } from '../schemas/auth.schema.js'
-import { ConflictError } from '../types/errors.js'
 import { env } from '../lib/env.js'
+import { prisma } from '../lib/prisma.js'
+import type { RegisterSchema } from '../schemas/auth.schema.js'
+import { ConflictError } from '../types/errors.js'
 
 /**
  * Register a new user and queue email verification
