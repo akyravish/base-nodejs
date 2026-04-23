@@ -33,8 +33,13 @@ export const changePasswordSchema = z.object({
   newPassword: passwordSchema,
 })
 
+export const verifyEmailSchema = z.object({
+  token: z.string().min(1, 'Verification token is required'),
+})
+
 export type RegisterSchema = z.infer<typeof registerSchema>
 export type LoginSchema = z.infer<typeof loginSchema>
 export type ForgotPasswordSchema = z.infer<typeof forgotPasswordSchema>
 export type ResetPasswordSchema = z.infer<typeof resetPasswordSchema>
 export type ChangePasswordSchema = z.infer<typeof changePasswordSchema>
+export type VerifyEmailSchema = z.infer<typeof verifyEmailSchema>

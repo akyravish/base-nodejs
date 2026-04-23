@@ -25,6 +25,9 @@ const envSchema = z.object({
   /* ---------------------------------- JWT ---------------------------------- */
   JWT_ACCESS_SECRET: z.string().min(32, 'JWT_ACCESS_SECRET must be at least 32 characters long'),
   JWT_REFRESH_SECRET: z.string().min(32, 'JWT_REFRESH_SECRET must be at least 32 characters long'),
+  JWT_EMAIL_VERIFICATION_SECRET: z
+    .string()
+    .min(32, 'JWT_EMAIL_VERIFICATION_SECRET must be at least 32 characters long'),
   JWT_ACCESS_EXPIRY: z.string().default('15m'),
   JWT_REFRESH_EXPIRY: z.string().default('7d'),
 
@@ -43,6 +46,8 @@ const envSchema = z.object({
     .transform((val) => (val ? Number(val) : 100)),
 
   /* ------------------------------ EMAIL ----------------------------- */
+  /** Base URL of the web app (e.g. https://app.example.com). Used to build verify-email links; omit trailing slash. */
+  PUBLIC_APP_URL: z.string().url().optional(),
   EMAIL_FROM: z.string().email().optional(),
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z
