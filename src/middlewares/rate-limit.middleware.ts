@@ -35,6 +35,38 @@ export const generalRateLimiter = rateLimit({
   },
 })
 
+/**
+ * Rate limiter for cookie-based session routes (logout, refresh). Counts every request
+ * (including 2xx), unlike `authRateLimiter` with `skipSuccessfulRequests: true`, so
+ * successful logout/refresh spam is still throttled.
+ */
+export const sessionCookieRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 60,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  store: new RedisStore({
+    sendCommand: (...args: Parameters<Redis['call']>): Promise<RedisReply> =>
+      redis.call(...args) as unknown as Promise<RedisReply>,
+    prefix: 'rl:session-cookie:',
+  }),
+  keyGenerator: (req: Request): Promise<string> => Promise.resolve(req.user?.id || req.ip || ''),
+  handler: (req: Request, res: Response) => {
+    const retryAfter = req.rateLimit?.resetTime
+      ? Math.ceil((req.rateLimit.resetTime.getTime() - Date.now()) / 1000)
+      : undefined
+
+    res.status(429).json({
+      success: false,
+      error: {
+        code: 'RATE_LIMIT_EXCEEDED',
+        message: 'Too many session requests. Please try again later.',
+      },
+      retryAfter,
+    })
+  },
+})
+
 // Stricter rate limiter for authenticated routes
 export const authRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes

@@ -1,0 +1,563 @@
+---
+description: Base development standards for Node.js backend development
+globs:
+alwaysApply: true
+---
+
+# Base Development Standards — Node.js Backend
+
+You are an expert Node.js backend engineer with deep experience in REST/GraphQL APIs,
+serverless (AWS Lambda), event-driven systems, and cloud-native architecture.
+
+## Core Principles
+
+- Write clean, readable, and maintainable code with consistent formatting
+- Optimize for performance, security, and cost-efficiency
+- Follow DRY (Don't Repeat Yourself) principles — think of it like writing a reusable middleware, not copy-pasting route handlers
+- Favor clarity over cleverness — future-you will thank present-you
+- Handle errors explicitly at every layer (route → service → data)
+- Document all public modules, functions, and APIs
+- Never trust external input — validate at the boundary, every time
+
+---
+
+## Folder Structure
+
+Every project must follow this structure. Routes call services. Services call repositories. Routes never touch the DB directly. Think of it like a restaurant: the waiter (route) takes the order, the chef (service) cooks it, the pantry (repository) stores the ingredients.
+
+```
+src/
+├── routes/         → HTTP layer only — no business logic
+├── services/       → all business logic lives here
+├── repositories/   → all DB queries live here
+├── middleware/     → auth, validation, error handler
+├── events/
+│   ├── producers/  → functions that emit events
+│   └── consumers/  → functions that handle incoming events
+├── lib/            → shared utilities (logger, http client, redis)
+├── types/          → shared TS interfaces, enums, and types
+└── config/         → env validation, app config object
+```
+
+**Rules:**
+
+- Never import a `repository` directly from a `route` — always go through a `service`
+- Never put business logic in `routes/` — route handlers should be ≤ 10 lines
+- One file per concern — `UserService` lives in `services/user.service.ts`, not `services/index.ts`
+
+---
+
+## TypeScript Standards
+
+TypeScript must be enabled with `"strict": true` in `tsconfig.json`. No exceptions.
+
+### Never use `any`
+
+Use `unknown` and narrow it. `any` turns off the type checker — it's like removing the safety net while keeping the trapeze.
+
+```ts
+// ❌ Bad — silences all type errors downstream
+async function process(data: any) { ... }
+
+// ✅ Good — unknown forces you to validate before use
+async function processOrder(data: unknown): Promise<OrderResult> {
+  const order = orderSchema.parse(data); // Zod narrows unknown → Order
+  return orderService.process(order);
+}
+```
+
+### Explicit return types on all exported functions
+
+```ts
+// ❌ Bad — inferred return type, breaks silently on refactor
+export async function getUser(id: string) {
+  return db.users.findUnique({ where: { id } });
+}
+
+// ✅ Good — contract is explicit and enforced
+export async function getUser(id: string): Promise<User | null> {
+  return db.users.findUnique({ where: { id } });
+}
+```
+
+### Type conventions
+
+- `interface` for object shapes that may be extended: `interface UserRepository { ... }`
+- `type` for unions, intersections, and aliases: `type UserId = string`
+- `enum` for fixed value sets — never magic strings:
+
+```ts
+// ❌ Bad
+if (order.status === 'pending') { ... }
+
+// ✅ Good
+enum OrderStatus {
+  PENDING = 'pending',
+  SHIPPED = 'shipped',
+  DELIVERED = 'delivered',
+}
+if (order.status === OrderStatus.PENDING) { ... }
+```
+
+- Use `satisfies` over `as` for type assertions:
+
+```ts
+// ❌ Risky — casts without checking
+const config = rawConfig as AppConfig;
+
+// ✅ Safe — validates the shape
+const config = rawConfig satisfies AppConfig;
+```
+
+---
+
+## Coding Conventions
+
+### Naming
+
+- `camelCase` for variables and functions: `getUserById`, `parseToken`
+- `PascalCase` for classes and interfaces: `UserService`, `DatabaseError`, `OrderRepository`
+- `UPPER_SNAKE_CASE` for constants: `MAX_RETRY_COUNT`, `JWT_EXPIRY_SECONDS`
+- Prefix private class members with `_`: `_connectionPool`
+- Boolean names start with `is`, `has`, `should`: `isAuthenticated`, `hasRole`, `shouldRetry`
+- Plurals for arrays: `users`, `eventIds`, `orderIds`
+- Event names: `noun.verb` in past tense — `user.created`, `order.shipped`, `payment.failed`
+
+### Formatting
+
+- 2-space indentation
+- Max 100 characters per line
+- Blank lines between logical blocks
+- Always use curly braces — even for single-line `if` blocks
+- Consistent spacing around operators
+
+### Comments
+
+- Comment the _why_, not the _what_ — code explains what, comments explain intent
+- JSDoc/TSDoc on every exported function and class
+- Include param types, return types, and edge cases in doc comments
+- Log messages must be static strings — dynamic data goes in the metadata object:
+
+```ts
+// ❌ Bad — not searchable in log aggregators
+logger.info('User created: ' + userId);
+
+// ✅ Good — structured, filterable
+logger.info({ userId }, 'User created');
+```
+
+---
+
+## Error Handling
+
+Think of error handling like airport security — catch issues at the gate, not on the plane.
+
+- **Never swallow errors silently** — always log or rethrow with context
+- Use typed/custom error classes: `class NotFoundError extends AppError {}`
+- Handle errors at the right layer:
+  - Route layer: HTTP response codes
+  - Service layer: business logic errors
+  - Data layer: DB/network errors
+- Always include meaningful messages: `"User not found: id=42"` beats `"Error"`
+- Use `async/await` with `try/catch` — avoid unhandled promise rejections
+
+```ts
+// ❌ Bad — silent failure
+const user = await getUser(id).catch(() => null);
+
+// ✅ Good — explicit, debuggable
+try {
+  const user = await getUser(id);
+} catch (err) {
+  logger.error({ err, userId: id }, 'Failed to fetch user');
+  throw new NotFoundError(`User not found: id=${id}`);
+}
+```
+
+### Centralized error handler
+
+All Express apps must use a single error-handling middleware. Never handle HTTP error responses inline in route handlers.
+
+```ts
+// middleware/errorHandler.ts
+export function errorHandler(
+  err: Error,
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void {
+  if (err instanceof AppError) {
+    res.status(err.statusCode).json({
+      data: null,
+      error: { code: err.code, message: err.message }
+    });
+    return;
+  }
+  logger.error({ err, requestId: req.id }, 'Unhandled error');
+  res.status(500).json({
+    data: null,
+    error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred' }
+  });
+}
+```
+
+---
+
+## API Design
+
+### Response envelope
+
+Every response — success or failure — must use this shape. No exceptions. Consistent shape means every client can write one response handler.
+
+```ts
+type ApiResponse<T> = {
+  data: T | null;
+  error: { code: string; message: string; details?: unknown } | null;
+  meta?: { page: number; limit: number; total: number };
+};
+
+// ✅ Success
+{ data: { id: '123', name: 'Alice' }, error: null }
+
+// ✅ Error
+{ data: null, error: { code: 'USER_NOT_FOUND', message: 'User not found: id=123' } }
+
+// ✅ Paginated list
+{ data: [...], error: null, meta: { page: 1, limit: 20, total: 340 } }
+```
+
+### URL conventions
+
+- All routes prefixed: `/api/v1/`
+- Nouns, not verbs: `/api/v1/users`, not `/api/v1/getUsers`
+- Nested resources for ownership: `/api/v1/users/:userId/orders`
+- Never change a versioned API — create `/api/v2/` instead
+
+### HTTP status codes
+
+Use these consistently — never return `200` for an error:
+
+| Scenario                    | Code |
+| --------------------------- | ---- |
+| Successful GET / PUT        | 200  |
+| Successful POST (created)   | 201  |
+| Successful DELETE (no body) | 204  |
+| Validation error            | 422  |
+| Unauthenticated             | 401  |
+| Unauthorized (wrong role)   | 403  |
+| Not found                   | 404  |
+| Internal error              | 500  |
+
+### Pagination
+
+All list endpoints must be paginated. Use cursor-based pagination for large datasets (avoids OFFSET scanning):
+
+```ts
+// Query params: GET /api/v1/orders?limit=20&cursor=<lastId>
+// Response meta always includes total count and next cursor
+meta: { limit: 20, total: 1540, nextCursor: 'eyJpZCI6IjEwMCJ9' }
+```
+
+Default `limit=20`, maximum `limit=100`. Reject requests above the max with a 422.
+
+---
+
+## Auth & Authorization
+
+### Structure
+
+Auth is always middleware — never inline in route handlers. Think of it as a bouncer at the door, not a check at every table.
+
+```ts
+// ✅ Route should look exactly like this
+router.delete(
+  '/users/:id',
+  authenticate, // verifies token → sets req.user
+  requireRole('admin'), // checks req.user.role
+  deleteUserHandler // purely business logic, no auth checks inside
+);
+```
+
+### JWT rules
+
+- Access token: short-lived (15 min), stored in memory (never localStorage)
+- Refresh token: long-lived (7 days), stored in httpOnly + Secure + SameSite=Strict cookie
+- JWT payload: `{ userId, role, sessionId }` — nothing sensitive (no email, no PII)
+- Always validate `iss`, `aud`, `exp` claims on every request
+- Rotate refresh tokens on every use — invalidate old token immediately
+
+### RBAC pattern
+
+Define roles as an enum. Middleware enforces them — services never check roles directly.
+
+```ts
+enum Role {
+  USER = 'user',
+  ADMIN = 'admin',
+  SUPPORT = 'support'
+}
+
+// middleware/requireRole.ts
+export function requireRole(...roles: Role[]) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!roles.includes(req.user.role)) {
+      throw new ForbiddenError('Insufficient permissions');
+    }
+    next();
+  };
+}
+```
+
+### Auth security checklist
+
+- [ ] Passwords hashed with `bcrypt` (cost ≥ 12) or `argon2` — never plain or MD5
+- [ ] Rate limit auth endpoints: max 10 attempts / 15 min per IP
+- [ ] Refresh token rotation with revocation list (Redis or DB)
+- [ ] CORS configured explicitly — `origin: '*'` is never acceptable in production
+- [ ] `helmet` applied to all Express apps
+
+---
+
+## Queue / Event-Driven Patterns
+
+### Event envelope
+
+Every domain event must use this shape. The `eventId` is used for deduplication — consumers must be idempotent.
+
+```ts
+type DomainEvent<T> = {
+  eventId: string; // uuid v4 — for deduplication
+  eventType: string; // "order.created" — noun.verb, past tense
+  version: number; // schema version — increment on breaking changes
+  timestamp: string; // ISO 8601
+  payload: T;
+};
+```
+
+### Consumer rules
+
+- Every consumer must be **idempotent** — store processed `eventId`s and skip duplicates. Like a restaurant order system — if the same ticket comes in twice, don't cook it twice.
+- Never do heavy work in the message handler — hand off immediately to a service function:
+
+```ts
+// ✅ Consumer stays thin — all logic in the service
+async function handleOrderCreated(event: DomainEvent<OrderCreatedPayload>) {
+  if (await isAlreadyProcessed(event.eventId)) return;
+  await orderService.fulfil(event.payload);
+  await markProcessed(event.eventId);
+}
+```
+
+- Always configure a **Dead Letter Queue (DLQ)** — never silently drop a failed message
+- Set visibility timeout on SQS messages longer than your max processing time
+- Log `eventId` and `eventType` on every message received and processed
+
+### Producer rules
+
+- Emit events after the DB write succeeds — never before (avoids events for rolled-back transactions)
+- For critical events, use the **transactional outbox pattern**: write the event to a DB table in the same transaction, then a separate worker publishes it
+
+---
+
+## Node.js-Specific Patterns
+
+### Async/Await
+
+- Always `await` Promises — never mix callbacks with async/await in the same function
+- Use `Promise.all()` for parallel independent operations (like sending multiple API calls at once, not one-by-one)
+- Always set timeouts on outbound HTTP and DB calls — never wait forever
+
+### Modules
+
+- Use ES Modules (`import/export`) in new projects; CommonJS (`require`) only for legacy
+- Keep modules focused — one responsibility per file
+
+### Environment & Config
+
+- **Never hardcode secrets** — use `process.env` + `dotenv` locally, AWS Secrets Manager / SSM in production
+- Validate all required env vars at startup — fail fast and loudly, before the server accepts any traffic
+
+```ts
+// config/env.ts — run before anything else
+const requiredEnvVars = [
+  'DATABASE_URL',
+  'JWT_SECRET',
+  'PORT',
+  'REDIS_URL'
+] as const;
+for (const key of requiredEnvVars) {
+  if (!process.env[key]) throw new Error(`Missing required env var: ${key}`);
+}
+export const config = {
+  databaseUrl: process.env.DATABASE_URL!,
+  jwtSecret: process.env.JWT_SECRET!,
+  port: Number(process.env.PORT),
+  redisUrl: process.env.REDIS_URL!
+} satisfies Record<string, unknown>;
+```
+
+### Graceful shutdown
+
+Always handle `SIGTERM` — drain in-flight requests before exiting. Critical for Lambda, containers, and queue consumers.
+
+```ts
+process.on('SIGTERM', async () => {
+  logger.info('SIGTERM received — shutting down gracefully');
+  server.close(async () => {
+    await db.disconnect();
+    await redis.quit();
+    logger.info('Shutdown complete');
+    process.exit(0);
+  });
+});
+```
+
+### Express / HTTP Layer
+
+- Use a centralized error handler middleware (see Error Handling section)
+- Validate all request bodies with **Zod** — this is the project standard, not Joi or Yup
+- Use `helmet`, `cors`, and `express-rate-limit` on all routes
+- Every request must have a unique `requestId` (use `uuid`) attached to `req` and included in all log entries
+
+### Database
+
+- Always use parameterized queries or an ORM — never string-interpolate SQL
+- Use connection pooling — don't open a new connection per request
+- Wrap multi-step mutations in transactions
+- Add `created_at` and `updated_at` to every table
+- Index every foreign key and every field used in a `WHERE` clause
+- Use `EXPLAIN ANALYZE` to diagnose slow queries before adding indexes blindly
+
+### Logging
+
+- Use `pino` for structured JSON logging — this is the project standard
+- Include `requestId` in every log entry for traceability
+- Log levels: `error` for failures, `warn` for unexpected-but-handled, `info` for key events, `debug` for dev only
+- Log messages are static strings — dynamic data always goes in the metadata object (see Coding Conventions)
+
+---
+
+## Testing
+
+Think of tests like a safety net under a trapeze — unit tests catch individual missteps, integration tests catch handoff errors.
+
+### File conventions
+
+- Unit tests: `*.test.ts` — lives next to the file it tests (`user.service.test.ts`)
+- Integration tests: `*.spec.ts` — lives in `/tests/` at the project root
+- Test naming: `describe('UserService')` → `it('should throw NotFoundError when user does not exist')`
+
+### What to test
+
+| Layer           | Test type   | What to cover                                         |
+| --------------- | ----------- | ----------------------------------------------------- |
+| Services        | Unit        | Every function, happy path + all error branches       |
+| Repositories    | Unit        | Mock DB, test query logic                             |
+| Routes          | Integration | Every endpoint — happy path + min. 2 error cases      |
+| Auth middleware | Unit        | Valid token, expired token, missing token, wrong role |
+| Event consumers | Unit        | Happy path + duplicate event (idempotency)            |
+
+### What NOT to test
+
+- Implementation details or private methods
+- Framework internals (Express routing, Zod parsing internals)
+- Tests that just assert `true === true` — coverage for its own sake is noise
+
+### Coverage
+
+Enforce a minimum of **80% line coverage** in CI. A test that exists but doesn't assert anything meaningful is worse than no test.
+
+```ts
+// Arrange → Act → Assert — always this order
+it('should throw NotFoundError when user does not exist', async () => {
+  // Arrange
+  mockUserRepo.findById.mockResolvedValue(null);
+
+  // Act & Assert
+  await expect(userService.getById('missing-id')).rejects.toThrow(
+    NotFoundError
+  );
+});
+```
+
+---
+
+## Performance
+
+- Avoid N+1 queries — batch or eager-load related data
+- Use `Promise.all()` for concurrent independent async tasks
+- Cache expensive or repeated operations (Redis for shared cache, LRU for in-process)
+- Stream large payloads instead of buffering entirely in memory
+- Set timeouts on all outbound HTTP/DB calls — never leave them open-ended
+- Use `OFFSET` pagination only for small datasets — use cursor-based for anything large
+
+---
+
+## Security
+
+- Validate + sanitize all input at the API boundary with Zod
+- Use parameterized queries — **no SQL string interpolation, ever**
+- Hash passwords with `bcrypt` (cost ≥ 12) or `argon2` — never plain or MD5
+- Short-lived JWTs + refresh token rotation (see Auth section)
+- Apply principle of least privilege to IAM roles and DB users
+- Run `npm audit` in CI — fail the build on high-severity vulnerabilities
+- Never log sensitive data: no passwords, tokens, card numbers, or PII in logs
+
+---
+
+## CI/CD & Deployment
+
+### Required pipeline stages (in order)
+
+1. `lint` — ESLint + Prettier check (fail fast, no style debates in PRs)
+2. `type-check` — `tsc --noEmit` catches type errors without building
+3. `test` — unit + integration tests with coverage threshold enforced
+4. `build` — production build (catches missing env vars, bad imports)
+5. `deploy` — only on `main` branch, only after all above pass
+
+### Required endpoints
+
+Every service must expose:
+
+- `GET /health` — returns `{ status: 'ok', uptime: N, version: string }` — used by load balancers and monitoring
+- `GET /ready` — returns `{ status: 'ok' }` only when DB + Redis connections are established
+
+### Lambda-specific rules
+
+- No shared mutable state outside the handler function — Lambda instances are reused unpredictably
+- Initialize DB/Redis connections outside the handler but handle reconnection inside
+- Always set function timeout lower than the SQS visibility timeout to avoid duplicate processing
+- Keep cold start time low: avoid heavy imports at the top level, use lazy initialization
+
+### Secrets & config
+
+- Secrets always via environment variables — never in code, never baked into Docker images
+- Use AWS Secrets Manager or SSM Parameter Store in production — never plain `.env` files in deployed environments
+- `.env.example` must be kept up to date and committed — `.env` is always in `.gitignore`
+
+---
+
+## Making Changes
+
+### Before touching code
+
+- Explain the intended change and the reason before editing anything
+- Identify existing patterns (error handling, naming, middleware structure) and stay consistent
+- Get explicit approval before proceeding
+- **Never delete existing code without flagging it explicitly** — call out what is being removed and why, and wait for confirmation before proceeding
+
+### Debugging errors
+
+- Understand and explain the root cause first — don't just fix the symptom
+- If the cause is unclear, ask rather than assume
+
+### Codebase conventions
+
+- Respect existing patterns — don't "fix" things that work without clear justification
+- Maintain consistency with the surrounding code
+- When unsure: ask, don't assume
+
+### Incremental changes
+
+- Break large changes into reviewable steps
+- Document each step and its rationale

@@ -1,5 +1,8 @@
 import { z } from 'zod'
 
+/** Upper bound for JWTs and similar tokens in request bodies (DoS / abuse cap). */
+const MAX_TOKEN_STRING_LENGTH = 8192
+
 const passwordSchema = z
   .string()
   .min(8, 'Password must be at least 8 characters')
@@ -13,9 +16,14 @@ export const registerSchema = z.object({
   password: passwordSchema,
 })
 
+const loginPasswordSchema = z
+  .string()
+  .min(1, 'Password is required')
+  .max(1024, 'Password is too long')
+
 export const loginSchema = z.object({
   email: z.string().email('Invalid email address').trim().toLowerCase(),
-  password: passwordSchema,
+  password: loginPasswordSchema,
   rememberMe: z.boolean().optional().default(false),
 })
 
@@ -24,7 +32,7 @@ export const forgotPasswordSchema = z.object({
 })
 
 export const resetPasswordSchema = z.object({
-  token: z.string().min(1, 'Token is required'),
+  token: z.string().min(1, 'Token is required').max(MAX_TOKEN_STRING_LENGTH, 'Token is too long'),
   password: passwordSchema,
 })
 
@@ -34,7 +42,10 @@ export const changePasswordSchema = z.object({
 })
 
 export const verifyEmailSchema = z.object({
-  token: z.string().min(1, 'Verification token is required'),
+  token: z
+    .string()
+    .min(1, 'Verification token is required')
+    .max(MAX_TOKEN_STRING_LENGTH, 'Token is too long'),
 })
 
 export type RegisterSchema = z.infer<typeof registerSchema>

@@ -4,8 +4,10 @@ import jwt from 'jsonwebtoken'
 import { env } from '../lib/env.js'
 import { AuthError } from '../types/errors.js'
 
+/** Matches `generateAccessToken` payload in `auth.service.ts`. */
 interface JwtAccessPayload {
-  id: string
+  userId: string
+  isAdmin?: boolean
   isImpersonating?: boolean | undefined | null
 }
 
@@ -22,14 +24,18 @@ export function authenticate(req: Request, _res: Response, next: NextFunction): 
 
   try {
     const payload = jwt.verify(token, env.JWT_ACCESS_SECRET) as JwtAccessPayload
-
+    if (!payload.userId) {
+      throw new AuthError('Invalid or expired JWT access token')
+    }
     req.user = {
-      id: payload.id,
+      id: payload.userId,
       isImpersonating: payload.isImpersonating,
     }
-
     next()
-  } catch {
+  } catch (err) {
+    if (err instanceof AuthError) {
+      throw err
+    }
     throw new AuthError('Invalid or expired JWT access token')
   }
 }

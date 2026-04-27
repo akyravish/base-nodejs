@@ -58,3 +58,10 @@ export async function hashPassword(
 export async function verifyPassword(password: string, hash: string): Promise<boolean> {
   return await argon2.verify(hash, password)
 }
+
+/**
+ * Precomputed Argon2id hash of a non-guessable string. Used during login so `verifyPassword`
+ * always runs with real Argon2 work when the user row is missing, mitigating timing probes.
+ */
+export const DUMMY_PASSWORD_VERIFICATION_HASH =
+  '$argon2id$v=19$m=65536,t=3,p=4$t4GQRQdS0t1a8ZUcd3FN3w$KosJi/v5cbi5QGuLZ2pTS4X/JMOiskYia461QrF8CsM' as const

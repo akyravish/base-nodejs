@@ -28,11 +28,19 @@ const envSchema = z.object({
   JWT_EMAIL_VERIFICATION_SECRET: z
     .string()
     .min(32, 'JWT_EMAIL_VERIFICATION_SECRET must be at least 32 characters long'),
+  JWT_PASSWORD_RESET_SECRET: z
+    .string()
+    .min(32, 'JWT_PASSWORD_RESET_SECRET must be at least 32 characters long'),
   JWT_ACCESS_EXPIRY: z.string().default('15m'),
   JWT_REFRESH_EXPIRY: z.string().default('7d'),
 
   /* ---------------------------------- SECURITY ---------------------------------- */
   ALLOWED_ORIGINS: z.string().transform((val) => val.split(',').map((origin) => origin.trim())),
+  /** When true, Express trusts `X-Forwarded-For` (e.g. one reverse proxy). Sets `req.ip` for rate limits. */
+  TRUST_PROXY: z
+    .string()
+    .optional()
+    .transform((val) => val === 'true' || val === '1'),
   ENCRYPTION_KEY: z.string().length(64, 'ENCRYPTION_KEY must be a 64-char hex string (32 bytes)'),
 
   /* ------------------------------ RATE LIMITING ----------------------------- */

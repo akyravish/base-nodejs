@@ -7,9 +7,14 @@ import helmet from 'helmet'
 import { env } from './lib/env.js'
 import { globalErrorHandler } from './middlewares/error.middleware.js'
 import { generalRateLimiter } from './middlewares/rate-limit.middleware.js'
+import { authRouter } from './routes/auth.route.js'
 
 export function createApp(): express.Application {
   const app = express()
+
+  if (env.TRUST_PROXY) {
+    app.set('trust proxy', 1)
+  }
 
   /* ------------------------------ Security Headers ------------------------------ */
   app.use(helmet())
@@ -47,6 +52,7 @@ export function createApp(): express.Application {
 
   /* ------------------------------- API Routes ------------------------------- */
   app.use(generalRateLimiter)
+  app.use('/api/v1/auth', authRouter)
 
   /* ------------------------------- 404 Handler ------------------------------ */
   app.use((_req: Request, res: Response): void => {

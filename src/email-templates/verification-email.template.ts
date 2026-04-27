@@ -1,4 +1,7 @@
-import { VERIFICATION_EMAIL_MESSAGES } from '../messages/verification-email.messages.js'
+import {
+  PASSWORD_RESET_EMAIL_MESSAGES,
+  VERIFICATION_EMAIL_MESSAGES,
+} from '../messages/verification-email.messages.js'
 
 /**
  * Builds subject and bodies for the registration / email-verification message.
@@ -16,6 +19,22 @@ export function buildVerificationEmailTemplate(verifyUrl: string): {
     `<p>${m.thankYou}</p>`,
     `<p><a href="${verifyUrl}">${m.linkLabel}</a></p>`,
     `<p>${m.expiresNote}</p>`,
+    `<p>${m.ignoreIfNotYou}</p>`,
+  ].join('')
+  return { subject, html, text }
+}
+
+export function buildPasswordResetEmailTemplate(resetUrl: string): {
+  subject: string
+  html: string
+  text: string
+} {
+  const m = PASSWORD_RESET_EMAIL_MESSAGES
+  const subject = m.subject
+  const text = [m.resetPasswordInstruction, '', resetUrl, '', m.ignoreIfNotYou].join('\n')
+  const html = [
+    `<p>${m.resetPasswordInstruction}</p>`,
+    `<p><a href="${resetUrl}">${m.linkLabel}</a></p>`,
     `<p>${m.ignoreIfNotYou}</p>`,
   ].join('')
   return { subject, html, text }
