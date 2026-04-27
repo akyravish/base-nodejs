@@ -2,6 +2,7 @@ import { Router } from 'express'
 
 import * as AuthController from '../controllers/auth.controller.js'
 import { asyncHandler } from '../middlewares/async-handler.js'
+import { authenticate } from '../middlewares/auth.middleware.js'
 import { authRateLimiter, sessionCookieRateLimiter } from '../middlewares/rate-limit.middleware.js'
 import { validate } from '../middlewares/validate.middleware.js'
 import {
@@ -9,6 +10,7 @@ import {
   loginSchema,
   registerSchema,
   resetPasswordSchema,
+  revokeSessionBodySchema,
   verifyEmailSchema,
 } from '../schemas/auth.schema.js'
 
@@ -46,4 +48,13 @@ authRouter.post(
   authRateLimiter,
   validate(resetPasswordSchema),
   asyncHandler(AuthController.resetPassword),
+)
+
+/* ------------------------------ Private routes ----------------------------- */
+authRouter.get('/sessions', authenticate, asyncHandler(AuthController.getSessions))
+authRouter.post(
+  '/sessions/revoke',
+  authenticate,
+  validate(revokeSessionBodySchema),
+  asyncHandler(AuthController.revokeSession),
 )

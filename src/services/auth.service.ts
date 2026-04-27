@@ -18,7 +18,7 @@ import { logger } from '../lib/logger.js'
 import { prisma } from '../lib/prisma.js'
 import { AUTH_MESSAGES } from '../messages/auth.messages.js'
 import type { LoginSchema, RegisterSchema, ResetPasswordSchema } from '../schemas/auth.schema.js'
-import { AuthError, RateLimitError } from '../types/errors.js'
+import { AuthError, NotFoundError, RateLimitError } from '../types/errors.js'
 
 const FAILED_ATTEMPT_WINDOW_MS = 15 * 60 * 1000 // 15 minutes
 const LOCKOUT_THRESHOLD = 5 // Number of failed attempts to trigger lockout
@@ -495,4 +495,85 @@ export async function resetPassword(
       },
     }),
   ])
+}
+
+export interface PublicSessionRow {
+  id: string
+  createdAt: Date
+  expiresAt: Date
+  /** Masked IP for display (reduces PII vs raw address). */
+  ipLabel: string | null
+  /** Truncated user-agent string for display. */
+  clientLabel: string | null
+}
+
+function maskIpForSessionList(ip: string | null): string | null {
+  if (ip == null || ip === '') {
+    return null
+  }
+  if (ip.includes('.')) {
+    const parts = ip.split('.')
+    if (parts.length === 4) {
+      return `${parts[0]}.${parts[1]}.x.x`
+    }
+  }
+  if (ip.includes(':')) {
+    return '[IPv6 masked]'
+  }
+  return '—'
+}
+
+const MAX_CLIENT_LABEL_LENGTH = 120
+
+function truncateClientLabelForSessionList(ua: string | null): string | null {
+  if (ua == null || ua === '') {
+    return null
+  }
+  const t = ua.replace(/\s+/g, ' ').trim()
+  if (t.length <= MAX_CLIENT_LABEL_LENGTH) {
+    return t
+  }
+  return `${t.slice(0, MAX_CLIENT_LABEL_LENGTH - 1)}…`
+}
+
+/**
+ * List a user's active sessions (public-safe fields: masked IP, truncated user agent).
+ * @param userId - The user's ID
+ */
+export async function listUserSessions(userId: string): Promise<PublicSessionRow[]> {
+  const rows = await prisma.refreshToken.findMany({
+    where: {
+      userId,
+      revokedAt: null,
+      expiresAt: { gt: new Date() },
+    },
+    select: { id: true, ipAddress: true, userAgent: true, createdAt: true, expiresAt: true },
+    orderBy: { createdAt: 'desc' },
+  })
+  return rows.map((r) => ({
+    id: r.id,
+    createdAt: r.createdAt,
+    expiresAt: r.expiresAt,
+    ipLabel: maskIpForSessionList(r.ipAddress),
+    clientLabel: truncateClientLabelForSessionList(r.userAgent),
+  }))
+}
+
+/**
+ * Revoke a session by ID
+ * @param userId - The user's ID
+ * @param sessionId - The session's ID
+ * @returns { void }
+ */
+export async function revokeSessionById(userId: string, sessionId: string): Promise<void> {
+  const session = await prisma.refreshToken.findUnique({ where: { id: sessionId } })
+
+  if (!session || session.userId !== userId) {
+    throw new NotFoundError('Session not found')
+  }
+
+  await prisma.refreshToken.update({
+    where: { id: sessionId },
+    data: { revokedAt: new Date() },
+  })
 }

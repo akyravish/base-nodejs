@@ -1,3 +1,4 @@
+import { isCuid } from '@paralleldrive/cuid2'
 import { z } from 'zod'
 
 /** Upper bound for JWTs and similar tokens in request bodies (DoS / abuse cap). */
@@ -48,9 +49,20 @@ export const verifyEmailSchema = z.object({
     .max(MAX_TOKEN_STRING_LENGTH, 'Token is too long'),
 })
 
+const sessionIdSchema = z
+  .string()
+  .min(1)
+  .max(128)
+  .refine((id) => isCuid(id), { message: 'Invalid session id' })
+
+export const revokeSessionBodySchema = z.object({
+  sessionId: sessionIdSchema,
+})
+
 export type RegisterSchema = z.infer<typeof registerSchema>
 export type LoginSchema = z.infer<typeof loginSchema>
 export type ForgotPasswordSchema = z.infer<typeof forgotPasswordSchema>
 export type ResetPasswordSchema = z.infer<typeof resetPasswordSchema>
 export type ChangePasswordSchema = z.infer<typeof changePasswordSchema>
 export type VerifyEmailSchema = z.infer<typeof verifyEmailSchema>
+export type RevokeSessionBodySchema = z.infer<typeof revokeSessionBodySchema>

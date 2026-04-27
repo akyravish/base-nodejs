@@ -9,6 +9,7 @@ import type {
   LoginSchema,
   RegisterSchema,
   ResetPasswordSchema,
+  RevokeSessionBodySchema,
   VerifyEmailSchema,
 } from '../schemas/auth.schema.js'
 import * as authService from '../services/auth.service.js'
@@ -35,7 +36,8 @@ function clearRefreshTokenCookie(res: Response): void {
 
 /**
  * Register a new user and queue email verification
- * @Body input - { email: string, password: string }
+ * @param req - { body: { email: string, password: string } }
+ * @param res - { json: (data: { message: string; verificationToken?: string }) => void }
  * @returns { message: string; verificationToken?: string }
  */
 export async function register(req: Request, res: Response): Promise<void> {
@@ -49,7 +51,8 @@ export async function register(req: Request, res: Response): Promise<void> {
 
 /**
  * Verify a user's email address
- * @Body token - { token: string }
+ * @param req - { body: { token: string } }
+ * @param res - { json: (data: { message: string }) => void }
  * @returns { void }
  */
 export async function verifyEmail(req: Request, res: Response): Promise<void> {
@@ -60,7 +63,8 @@ export async function verifyEmail(req: Request, res: Response): Promise<void> {
 
 /**
  * Login a user
- * @Body input - { email: string, password: string }
+ * @param req - { body: { email: string, password: string } }
+ * @param res - { json: (data: { message: string; accessToken: string }) => void }
  * @returns { message: string; token: string }
  */
 export async function login(req: Request, res: Response): Promise<void> {
@@ -77,7 +81,8 @@ export async function login(req: Request, res: Response): Promise<void> {
 
 /**
  * Logout a user
- * @returns { message: string }
+ * @param req - { cookies: { [REFRESH_COOKIE_NAME]: string } }
+ * @param res - { json: (data: { message: string }) => void }
  * @returns { void }
  */
 export async function logout(req: Request, res: Response): Promise<void> {
@@ -94,7 +99,8 @@ export async function logout(req: Request, res: Response): Promise<void> {
 
 /**
  * Refresh an access token
- * @returns { message: string; accessToken: string }
+ * @param req - { cookies: { [REFRESH_COOKIE_NAME]: string } }
+ * @param res - { json: (data: { message: string; accessToken: string }) => void }
  * @returns { void }
  */
 export async function refreshToken(req: Request, res: Response): Promise<void> {
@@ -123,7 +129,8 @@ export async function refreshToken(req: Request, res: Response): Promise<void> {
 
 /**
  * Generate a password reset token and send an email to the user
- * @Body input - { email: string }
+ * @param req - { body: { email: string } }
+ * @param res - { json: (data: { message: string; resetToken?: string }) => void }
  * @returns { message: string; resetToken?: string }
  */
 export async function forgotPassword(req: Request, res: Response): Promise<void> {
@@ -142,6 +149,12 @@ export async function forgotPassword(req: Request, res: Response): Promise<void>
   sendSuccess(res, { message: AUTH_MESSAGES.forgotPasswordGeneric })
 }
 
+/**
+ * Reset a user's password
+ * @param req - { body: { token: string, password: string } }
+ * @param res - { json: (data: { message: string }) => void }
+ * @returns { void }
+ */
 export async function resetPassword(req: Request, res: Response): Promise<void> {
   const input = req.body as ResetPasswordSchema
   await authService.resetPassword(input, {
@@ -149,4 +162,15 @@ export async function resetPassword(req: Request, res: Response): Promise<void> 
     userAgent: req.get('user-agent') ?? '',
   })
   sendSuccess(res, { message: 'Password reset successfully. Please login with your new password.' })
+}
+
+export async function getSessions(req: Request, res: Response): Promise<void> {
+  const sessions = await authService.listUserSessions(req.user!.id)
+  sendSuccess(res, { sessions })
+}
+
+export async function revokeSession(req: Request, res: Response): Promise<void> {
+  const { sessionId } = req.body as RevokeSessionBodySchema
+  await authService.revokeSessionById(req.user!.id, sessionId)
+  sendSuccess(res, { message: 'Session revoked successfully' })
 }
