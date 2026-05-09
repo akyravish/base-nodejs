@@ -18,62 +18,11 @@ datasource db {
 /* --------------------------------- MODELS --------------------------------- */
 
 model User {
-  id        String @id @default(cuid(2))
-  email String @unique
-  passwordHash String?
-  emailVerified Boolean @default(false)
-  lockedUntil DateTime?
+  id        String   @id @default(cuid(2))
+  email     String   @unique
+  name      String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  refreshTokens RefreshToken[]
-  loginAttempts LoginAttempt[]
-  auditLogs AuditLog[]
-  
   @@index([email])
-}
-
-model RefreshToken {
-  id String @id @default(cuid(2))
-  tokenHash String @unique // sha256 of the raw token — never store raw
-  userId String
-  expiresAt DateTime
-  revokedAt DateTime?
-  ipAddress String?
-  userAgent String?
-  createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([tokenHash])
-}
-
-model LoginAttempt {
-  id String @id @default(cuid(2))
-  userId String?
-  ipAddress String
-  email String // store the attempt's email address for tracking. Even if user not found
-  success Boolean
-  attemptAt DateTime @default(now())
-
-  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
-
-  @@index([email, attemptAt])
-  @@index([ipAddress, attemptAt])
-}
-
-model AuditLog {
-  id         String   @id @default(cuid(2))
-  userId     String?
-  action     String   // e.g. 'user.login', 'user.logout', 'user.password_reset'
-  metadata   Json?    // flexible payload — who, what changed, old/new values
-  ipAddress  String
-  userAgent  String
-  createdAt  DateTime @default(now())
-
-  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
-
-  @@index([userId, createdAt])
-  @@index([action])
 }

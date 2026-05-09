@@ -22,26 +22,13 @@ const envSchema = z.object({
   /* ---------------------------------- REDIS ---------------------------------- */
   REDIS_URL: z.string().min(1).url(),
 
-  /* ---------------------------------- JWT ---------------------------------- */
-  JWT_ACCESS_SECRET: z.string().min(32, 'JWT_ACCESS_SECRET must be at least 32 characters long'),
-  JWT_REFRESH_SECRET: z.string().min(32, 'JWT_REFRESH_SECRET must be at least 32 characters long'),
-  JWT_EMAIL_VERIFICATION_SECRET: z
-    .string()
-    .min(32, 'JWT_EMAIL_VERIFICATION_SECRET must be at least 32 characters long'),
-  JWT_PASSWORD_RESET_SECRET: z
-    .string()
-    .min(32, 'JWT_PASSWORD_RESET_SECRET must be at least 32 characters long'),
-  JWT_ACCESS_EXPIRY: z.string().default('15m'),
-  JWT_REFRESH_EXPIRY: z.string().default('7d'),
-
   /* ---------------------------------- SECURITY ---------------------------------- */
   ALLOWED_ORIGINS: z.string().transform((val) => val.split(',').map((origin) => origin.trim())),
-  /** When true, Express trusts `X-Forwarded-For` (e.g. one reverse proxy). Sets `req.ip` for rate limits. */
+  /** When true, Express trusts X-Forwarded-For (e.g. one reverse proxy). Sets req.ip for rate limits. */
   TRUST_PROXY: z
     .string()
     .optional()
     .transform((val) => val === 'true' || val === '1'),
-  ENCRYPTION_KEY: z.string().length(64, 'ENCRYPTION_KEY must be a 64-char hex string (32 bytes)'),
 
   /* ------------------------------ RATE LIMITING ----------------------------- */
   RATE_LIMIT_WINDOW_MS: z
@@ -53,17 +40,8 @@ const envSchema = z.object({
     .optional()
     .transform((val) => (val ? Number(val) : 100)),
 
-  /* ------------------------------ EMAIL ----------------------------- */
-  /** Base URL of the web app (e.g. https://app.example.com). Used to build verify-email links; omit trailing slash. */
-  PUBLIC_APP_URL: z.string().url().optional(),
-  EMAIL_FROM: z.string().email().optional(),
-  SMTP_HOST: z.string().optional(),
-  SMTP_PORT: z
-    .string()
-    .optional()
-    .transform((val) => (val ? Number(val) : 587)),
-  SMTP_USER: z.string().optional(),
-  SMTP_PASS: z.string().optional(),
+  /* ------------------------------ LOGGING ----------------------------- */
+  LOG_LEVEL: z.enum(['error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly']).default('info'),
 })
 
 function parseEnv(): z.infer<typeof envSchema> {

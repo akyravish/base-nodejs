@@ -1,30 +1,41 @@
-import type { Request, Response, NextFunction } from 'express'
+import type { NextFunction, Request, Response } from 'express'
 import type { ZodType, ZodTypeDef } from 'zod'
 
 import { ValidationError } from '../types/errors.js'
 
-type ValidateTarget = 'body' | 'params' | 'query'
+interface ValidationSchemas {
+  body?: ZodType<unknown, ZodTypeDef, unknown>
+  params?: ZodType<unknown, ZodTypeDef, unknown>
+  query?: ZodType<unknown, ZodTypeDef, unknown>
+}
 
-// Factory that returns middleware to validate request data against a Zod schema.
-// Replaces the validated data on the request object with the parsed (typed) result.
-//
-// Usage: router.post('/register', validate(registerSchema), AuthController.register
-export function validate<T>(
-  schema: ZodType<T, ZodTypeDef, unknown>,
-  target: ValidateTarget = 'body',
-) {
+/**
+ * Middleware factory that validates request data against Zod schemas.
+ * Usage: router.post('/users', validate({ body: createUserSchema }), controller.create)
+ */
+export function validate(schemas: ValidationSchemas) {
   return (req: Request, _res: Response, next: NextFunction): void => {
-    const result = schema.safeParse(req[target])
-
-    if (!result.success) {
-      throw new ValidationError('Request validation failed', result.error.flatten())
+    if (schemas.body !== undefined) {
+      const result = schemas.body.safeParse(req.body)
+      if (!result.success) {
+        throw new ValidationError('Request validation failed', result.error.flatten())
+      }
+      req.body = result.data
     }
 
-    if (target === 'body') {
-      req.body = result.data
-    } else if (target === 'params') {
+    if (schemas.params !== undefined) {
+      const result = schemas.params.safeParse(req.params)
+      if (!result.success) {
+        throw new ValidationError('Request validation failed', result.error.flatten())
+      }
       req.params = result.data as Request['params']
-    } else {
+    }
+
+    if (schemas.query !== undefined) {
+      const result = schemas.query.safeParse(req.query)
+      if (!result.success) {
+        throw new ValidationError('Request validation failed', result.error.flatten())
+      }
       req.query = result.data as Request['query']
     }
 

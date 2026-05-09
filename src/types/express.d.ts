@@ -3,10 +3,8 @@
 declare global {
   namespace Express {
     interface Request {
-      user?: {
-        id: string
-        isImpersonating?: boolean | undefined | null
-      }
+      /** UUID assigned to every incoming request by the requestId middleware. */
+      id?: string
     }
   }
 }

@@ -5,7 +5,7 @@ import { env } from './env.js'
 const { combine, timestamp, errors, json, colorize, simple } = format
 
 export const logger = createLogger({
-  level: env.NODE_ENV === 'production' ? 'info' : 'debug',
+  level: env.LOG_LEVEL,
   format: combine(
     timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
     errors({ stack: true }),
